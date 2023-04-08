@@ -42,9 +42,17 @@ class Control(commands.Cog):
     def restart(self):
         # Create a new python process of bot.py and stops the current one
         os.chdir(self.bot.directory)
-        python = "python" if platform == "win32" else "python3"
-        cmd = os.popen(f"nohup {python} bot.py &")
-        cmd.close()
+        try:
+            # If we're not in a systemd service unit, this will generate a KeyError
+            os.environ["INVOCATION_ID"]
+            # Determine the name of the service unit that the bot is running under. Then restart it
+            systemdunit = os.popen(f"systemctl status " + os.environ["SYSTEMD_EXEC_PID"] + " | head -n1 | cut -d. -f1 | cut -d ' ' -f2").read()
+            os.popen(f"sudo systemctl restart " + systemdunit).close()
+
+        except KeyError:
+            python = "python" if platform == "win32" else "python3"
+            cmd = os.popen(f"nohup {python} bot.py &")
+            cmd.close()
 
     @tasks.loop(hours=24)
     async def updates(self):
